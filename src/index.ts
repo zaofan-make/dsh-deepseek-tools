@@ -28,8 +28,13 @@ import {
 import { EditableConfigSchema, type EditableConfig } from './config.js';
 
 export const name = 'deepseek-tools';
-/** 本插件不依赖其它服务；settings 在 apply 里按需 inject */
-export const inject: string[] = [];
+/**
+ * ⚠️ 必须声明 `tools` —— Cordis 的 ctx 是**受限访问**的：
+ * 没在 inject 里声明就直接读 `ctx.tools` 会抛
+ * `cannot get property "tools" without inject`，整个 apply 直接失败（插件静默不激活）。
+ * settings 不走这里：它用的是 `ctx.inject(['settings'], cb)` 动态注入。
+ */
+export const inject = ['tools'];
 export const Config = EditableConfigSchema;
 
 /** 插件日志接口（宿主 Logger 的最小子集，避免硬依赖类型） */
@@ -154,18 +159,34 @@ function installSettings(ctx: Context, live: EditableConfig, logger?: LoggerLike
 /** 插件入口 */
 export function apply(ctx: Context, config?: EditableConfig): void {
   const logger = (ctx as unknown as { logger?: LoggerLike }).logger;
-  // live：设置页与 yml 的共同落点，工具每次调用都现读它 ⇒ 改完即时生效
-  const live: EditableConfig = {
-    apiKey: String((config as EditableConfig | undefined)?.apiKey ?? ''),
-    baseUrl: String((config as EditableConfig | undefined)?.baseUrl ?? 'https://api.deepseek.com'),
-    model: String((config as EditableConfig | undefined)?.model ?? 'deepseek-flash'),
-    timeoutMs: Number((config as EditableConfig | undefined)?.timeoutMs ?? 180_000),
-    ocrPurpose: (config as EditableConfig | undefined)?.ocrPurpose ?? 'text_recognition',
-    ttsVoice: (config as EditableConfig | undefined)?.ttsVoice ?? 'stella',
-    ttsFormat: (config as EditableConfig | undefined)?.ttsFormat ?? 'wav',
+  // ★★ 关键：**不要拷贝 config** ——
+  //   Config 里每个字段都标了 `.volatile()`，这类字段在运行时是"实时值"（有 .get()）。
+  //   插件页保存后，.get() 立刻返回新值；如果 apply 时拷贝成普通对象，改动就永远不生效。
+  const raw = (config ?? {}) as Record<string, unknown>;
+
+  /** volatile 字段用 .get() 现读；普通字段（yml 直填）就是普通值 —— 两种都兼容 */
+  const val = <T,>(field: unknown, fallback: T): T => {
+    try {
+      const g = (field as { get?: () => unknown } | undefined)?.get;
+      if (typeof g === 'function') {
+        const v = g.call(field);
+        return (v === undefined ? fallback : v) as T;
+      }
+    } catch { /* ignore */ }
+    return (field === undefined ? fallback : field) as T;
   };
 
-  installSettings(ctx, live, logger);
+  /** 每次调用都现读一遍 ⇒ 插件页里改完立刻生效，不用重启 */
+  const liveCfg = (): EditableConfig => ({
+    apiKey: String(val(raw.apiKey, '') ?? ''),
+    baseUrl: String(val(raw.baseUrl, 'https://api.deepseek.com') ?? ''),
+    model: String(val(raw.model, 'deepseek-flash') ?? ''),
+    timeoutMs: Number(val(raw.timeoutMs, 180000)),
+    ocrPurpose: val(raw.ocrPurpose, 'text_recognition' as EditableConfig['ocrPurpose']),
+    ttsVoice: String(val(raw.ttsVoice, 'stella') ?? ''),
+    ttsFormat: val(raw.ttsFormat, 'wav' as EditableConfig['ttsFormat']),
+  });
+  installSettings(ctx, liveCfg(), logger);   // 只为给 entry 一个初始快照
 
   const toolsReg = (ctx as unknown as { tools?: { register?: (t: unknown) => unknown } }).tools;
   if (!toolsReg || typeof toolsReg.register !== 'function') {
@@ -193,7 +214,7 @@ export function apply(ctx: Context, config?: EditableConfig): void {
       render: (_a, v: { ok: boolean; text: string }) => [{ type: 'text' as const, text: v.text }],
     },
     async execute(args: { query: string; thinking?: boolean; images?: string }) {
-      const cfg = toCfg(live);
+      const cfg = toCfg(liveCfg());
       if (!cfg.apiKey) return noKey();
       try {
         const imagePaths = String(args.images ?? '')
@@ -233,7 +254,7 @@ export function apply(ctx: Context, config?: EditableConfig): void {
       render: (_a, v: { ok: boolean; text: string }) => [{ type: 'text' as const, text: v.text }],
     },
     async execute(args: { urls: string; question?: string }) {
-      const cfg = toCfg(live);
+      const cfg = toCfg(liveCfg());
       if (!cfg.apiKey) return noKey();
       try {
         const urls = String(args.urls ?? '')
@@ -271,7 +292,7 @@ export function apply(ctx: Context, config?: EditableConfig): void {
       render: (_a, v: { ok: boolean; text: string }) => [{ type: 'text' as const, text: v.text }],
     },
     async execute(args: { path: string; purpose?: string }) {
-      const cfg = toCfg(live);
+      const cfg = toCfg(liveCfg());
       if (!cfg.apiKey) return noKey();
       try {
         const purpose = args.purpose === 'rich_layout_recognition' ? 'rich_layout_recognition' : undefined;
@@ -303,7 +324,7 @@ export function apply(ctx: Context, config?: EditableConfig): void {
       render: (_a, v: { ok: boolean; text: string }) => [{ type: 'text' as const, text: v.text }],
     },
     async execute(args: { path: string }) {
-      const cfg = toCfg(live);
+      const cfg = toCfg(liveCfg());
       if (!cfg.apiKey) return noKey();
       try {
         const r = await asrFile({ cfg, filePath: String(args.path ?? '') });
@@ -334,7 +355,7 @@ export function apply(ctx: Context, config?: EditableConfig): void {
       render: (_a, v: { ok: boolean; text: string }) => [{ type: 'text' as const, text: v.text }],
     },
     async execute(args: { text: string; voice?: string; savePath?: string }) {
-      const cfg = toCfg(live);
+      const cfg = toCfg(liveCfg());
       if (!cfg.apiKey) return noKey();
       try {
         const fmt = cfg.ttsFormat === 'pcm' ? 'pcm' : 'wav';

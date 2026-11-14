@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="ds全家桶">
+  <defs>
+    <linearGradient id="dsg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4D6BFE"/>
+      <stop offset="1" stop-color="#26338F"/>
+    </linearGradient>
+  </defs>
+  <!-- 底：圆角方块，DeepSeek 蓝渐变 -->
+  <rect x="0" y="0" width="48" height="48" rx="13" fill="url(#dsg)"/>
+  <!-- 五个工具：中心一颗 + 周围四颗 -->
+  <circle cx="24" cy="24" r="3.6" fill="#FFFFFF"/>
+  <circle cx="24" cy="11.5" r="2.8" fill="#FFFFFF" opacity="0.92"/>
+  <circle cx="36.5" cy="24" r="2.8" fill="#FFFFFF" opacity="0.92"/>
+  <circle cx="24" cy="36.5" r="2.8" fill="#FFFFFF" opacity="0.92"/>
+  <circle cx="11.5" cy="24" r="2.8" fill="#FFFFFF" opacity="0.92"/>
+  <!-- 连接线：暗示「一套打包」 -->
+  <g stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1.4">
+    <line x1="24" y1="15" x2="24" y2="20.5"/>
+    <line x1="24" y1="27.5" x2="24" y2="33"/>
+    <line x1="15" y1="24" x2="20.5" y2="24"/>
+    <line x1="27.5" y1="24" x2="33" y2="24"/>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-# dsh-deepseek-tools
+# ds全家桶
 
 > DeepSeek「全家桶应用 API」五件套，做成**独立 DSH 插件** —— 不用装 QQ 机器人也能用。
 
@@ -12,45 +12,39 @@
 | `ds_asr` | 音频转文字（16bit PCM WAV 或 Ogg Opus，≤8MiB / ≤120s） |
 | `ds_tts` | 文字转语音（stella 女声 / tide 男声），合成后**保存成文件**返回路径 |
 
-## 为什么要单独做一个
-
-很多人只是想在 DSH 里用上 DeepSeek 的这五个能力，但不想装整个 QQ 机器人插件。
-这个包就是为此准备的：**零额外依赖、只做这五个工具、带独立设置页**。
-
-（如果你已经在用 `@zaofan/dsh-qqbot`，它的扩展包市场里也有同名能力的 `deepseek-kit`，
-两者工具名前缀不同（`ds_*` vs `dskit_*`）、配置各存各的，装在一起不会互相干扰。）
-
 ## 安装
 
+下载本仓库 Release 里的 `.tgz`，然后：
+
 ```bash
-dsh plugin --profile <你的profile> add @zaofan/dsh-deepseek-tools
+dsh plugin --profile web add <下载后的 tgz 完整路径>
 ```
 
-装好后重启 dsh。
+重启 dsh。
 
-## 配置 API Key（两种方式，任选）
+## 配置 API Key
 
-**方式一：设置页（推荐）**
+**在插件页里改**：打开「插件」→ 点本插件 → 右侧「DeepSeek 设置」卡片，填 `API Key`，点保存，**即时生效、不用重启**。
 
-重启后打开 DSH 的【设置】，找到 **deepseek-tools** 一节，把 `apiKey` 填成你的
-DeepSeek 开放平台 Key（`sk-` 开头）。**改完即时生效，不用重启。**
-
-**方式二：写进配置**
+也可以写进 `cordis.patch.yml`：
 
 ```yaml
-# ~/.dsh/profiles/<profile>/cordis.patch.yml
-- id: deepseek-tools
-  config:
-    apiKey: sk-xxxxxxxx
+- insert:
+    - id: deepseek-tools
+      name: '@zaofan/dsh-deepseek-tools'
+      config:
+        apiKey: sk-xxxxxxxx
+        model: deepseek-flash
 ```
 
-**没填 Key 会怎样**：五个工具**仍然存在**（不会报 `unknown tool`），调用时会返回一句
-「还没配 API Key，请去设置页填」——不会静默失败，也不会污染其它插件。
+**没填 Key 会怎样**：五个工具**仍然存在**（不会报 `unknown tool`），调用时返回
+「还没配 API Key，请去插件页填」——不会静默失败，也不会污染其它插件。
 
-## 其余可调项（都有默认值）
+## 可调项（都有默认值）
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
+| `apiKey` | 空 | DeepSeek 开放平台 Key（`sk-` 开头） |
 | `baseUrl` | `https://api.deepseek.com` | 走代理 / 私有网关时才改 |
 | `model` | `deepseek-flash` | 搜索与读链接用的模型 |
 | `timeoutMs` | `180000` | 单个请求超时（OCR/TTS 内部另有更长固定超时） |
@@ -64,7 +58,7 @@ DeepSeek 开放平台 Key（`sk-` 开头）。**改完即时生效，不用重�
 帮我搜一下 2026 年最新的 RPG Maker 插件生态，要带来源
 （→ ds_search，thinking=true）
 
-读一下这三个链接，告诉我它们的安装步骤有什么不同
+读一下这三个链接，告诉我安装步骤有什么不同
 （→ ds_readurl）
 
 把这个 PDF 里的表格识别出来
@@ -79,10 +73,35 @@ DeepSeek 开放平台 Key（`sk-` 开头）。**改完即时生效，不用重�
 
 ## 注意
 
-- **ASR 限制**：只吃 16bit PCM WAV 或 Ogg Opus，≤8MiB、≤120 秒。MP3/AMR 要先转码。
-- **OCR 限制**：文件 ≤100 MiB。
-- **TTS 限制**：单次 ≤10,000 个计费字符，超了请分段。
+- **ASR**：只吃 16bit PCM WAV 或 Ogg Opus，≤8MiB、≤120 秒。MP3/AMR 要先转码。
+- **OCR**：文件 ≤100 MiB。
+- **TTS**：单次 ≤10,000 个计费字符，超了请分段。
 - 这些额度/限制都来自 DeepSeek 官方接口，本插件只做封装。
+
+## 开发备注（DSH 插件三件事，实测踩坑）
+
+想给 DSH 插件配好「名字 / 图标 / 设置页」，需要分别做三件事，**互不替代**：
+
+1. **显示名 + 描述** → `locale/zh.json`（`locale/en.json` 同理）
+   ```json
+   { "meta": { "title": "ds全家桶", "description": "…" } }
+   ```
+   并在 `package.json` 的 `exports` 里暴露 `"./locale/*.json"`。
+
+2. **插件列表图标** → `package.json` **顶层** `icon` 字段
+   ```json
+   "icon": "./icon.png"
+   ```
+   建议 256×256 PNG。（`dsh.client`、`dsh-plugin.json` 都不管这个。）
+
+3. **设置页表单** → 必须自己写 `client.js`（DSH **不会**从 schema 自动生成表单）
+   - `window.__ModuleLoader__.load({ id: '<npm 包名>', factory })`
+   - `ctx.inject(['remote','remote.settings'])` 拿 `rpc`，`ctx.inject(['slots'])` 注册卡片
+   - 插槽 `plugins.bundle.config`（key = npm 包名）
+   - 读写：`rpc.describe()` / `rpc.mutate(ns, ops, revision)`
+   - 主机端 schema 字段**必须**标 `.volatile()`，否则保存报
+     `Plugin entry "<ns>" has no volatile fields`
+     注意 schemastery 的 `.volatile()` **返回一个新 schema**，要用返回值
 
 ## 许可
 
