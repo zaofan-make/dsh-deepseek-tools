@@ -24,7 +24,8 @@
     "locale/*.json",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "PITFALLS.md"
   ],
   "scripts": {
     "build": "tsc",
