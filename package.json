@@ -1,0 +1,52 @@
+{
+  "name": "@zaofan/dsh-deepseek-tools",
+  "version": "0.1.0",
+  "description": "DeepSeek 全家桶五件套（联网搜索 / 读链接 / OCR / ASR / TTS）—— 独立 DSH 插件，五个工具对所有会话可见，带独立设置页填写 API。",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek",
+    "search",
+    "ocr",
+    "asr",
+    "tts"
+  ],
+  "files": [
+    "dist",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.18.4"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1",
+    "@deepseek-ai/dsh-tools": ">=0.1.1-rc.2",
+    "@deepseek-ai/dsh-settings": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-settings": {
+      "optional": true
+    }
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
+    "manifestVersion": 1
+  }
+}

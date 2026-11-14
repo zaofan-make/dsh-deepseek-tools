@@ -1,0 +1,20 @@
+# dsh-deepseek-tools bundle patch
+#
+# 安装后 dsh 启动时自动加载本插件。
+#
+# 环境变量（可选，也可以装好后在【设置页】里填）：
+#   DEEPSEEK_API_KEY - DeepSeek 开放平台 API Key（sk-...）
+#
+# 叠加顺序：dsh-base → 本 bundle patch → profile cordis.patch.yml → --patch
+
+- insert:
+    - id: deepseek-tools
+      name: '@zaofan/dsh-deepseek-tools'
+      config:
+        # 留空则在设置页里填；留空且设置页也没填时，五个工具会对 AI 不可见（不会报错）
+        apiKey: __FROM_ENV__
+        # 默认即可，一般不用改
+        baseUrl: https://api.deepseek.com
+        model: deepseek-flash
+        # 单个请求超时（毫秒）
+        timeoutMs: 180000
